@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="true">
+	<s:HGroup>
+		<s:VGroup>
+			<s:HGroup>
+				<s:VGroup>
+					<s:HGroup>
+						<s:Label text = "Name: " fontWeight="bold"/>
+						<s:Label text="{data.name}"/>
+					</s:HGroup>
+					<s:HGroup>
+						<s:Label text = "From: " fontWeight="bold"/>
+						<s:Label text="{data.owner.name}"/>
+						<s:Label text = "ID: " fontWeight="bold"/>
+						<s:Label text="{data.owner.id}"/>
+					</s:HGroup>
+					<s:HGroup>
+						<s:Label text = "Created Time: " fontWeight="bold"/>
+						<s:Label text="{data.created_time}"/>
+					</s:HGroup>
+					<s:HGroup>
+						<s:Label text = "Update Time: " fontWeight="bold"/>
+						<s:Label text="{data.updated_time}"/>
+					</s:HGroup>
+				</s:VGroup>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text = "Description: " fontWeight="bold"/>
+				<s:Label text="{data.description}"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text = "Email: " fontWeight="bold"/>
+				<s:Label text="{data.email}"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:HGroup>
+</s:ItemRenderer>

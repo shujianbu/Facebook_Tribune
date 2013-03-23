@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="true" click="itemrenderer1_clickHandler(event)">
+	
+	<fx:Script>
+		<![CDATA[
+			import flash.text.engine.ContentElement;
+			
+			import flashx.textLayout.elements.LinkElement;
+			import flashx.textLayout.elements.SpanElement;
+			
+			import mx.controls.LinkButton;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import spark.components.RichEditableText;
+			import spark.components.TextArea;
+			import spark.components.TitleWindow;
+			import spark.utils.TextFlowUtil;
+			
+			protected var ttlWndw:TitleWindow;
+			protected var postText:TextArea;
+			protected var postImage:Image;
+			protected var postLink:TextArea;
+			
+			protected var fbName:String;
+			protected var message:String;
+			protected var description:String;
+			protected var from:String;
+			protected var fbID:String;
+			protected var likes:String;
+			
+			/* This method is invoked when the user clicks on a post in the list of feeds. On clicking
+			the post, a popup window is constructed with more details about the poster including a thumbnail 
+			image and a link to the original news article. */
+			protected function itemrenderer1_clickHandler(evt:MouseEvent):void {
+				ttlWndw = new TitleWindow();
+				ttlWndw.title = "News post";
+				ttlWndw.width = 500;
+				ttlWndw.height = 600;
+				ttlWndw.setStyle("chromeColor", "#b5d1fb");
+				ttlWndw.top = -30;
+				ttlWndw.addEventListener(CloseEvent.CLOSE, ttlWndw_close);
+				ttlWndw.x = 500;
+				ttlWndw.y = 50;
+				
+				postImage = new Image();
+				postImage.source = data.picture;
+				ttlWndw.addElementAt(postImage,0);
+				
+				postText = new TextArea();
+				
+				postText.height = 300;
+				postText.width = 450;
+				postText.x = 10;
+				postText.y = 100;
+				postText.editable = false;
+				postText.focusEnabled = false;
+				
+				if(data.name == null)
+					fbName = "";
+				else 
+					fbName = data.name;
+				
+				if(data.from.name == null)
+					from = "";
+				else 
+					from = data.from.name;
+				
+				if(data.from.id == null)
+					fbID = "";
+				else 
+					fbID = data.from.id;
+				
+				if(data.message == null)
+					message = "";
+				else 
+					message = data.message;
+				
+				if(data.description == null)
+					description = "";
+				else 
+					description = data.description;
+				
+				if(data.likes == null)
+					likes = "";
+				else{
+					if(data.likes.count!=null)
+						likes = data.likes.count;
+					else
+						likes ="";
+				}
+					
+				// pop up text
+				var text:String = " \nName : " + fbName + "\n\n From : " + from +  
+					"\n\n Created Time : " + data.created_time +  "\n\n Description : " + description
+					+ "\n\n Message : " + message + "\n\n Likes: " + likes + "\n" ;
+								
+				postText.text = text;
+				ttlWndw.addElementAt(postText,1);
+				
+				if(data.link!=null){
+					postLink = new TextArea();
+					postLink.textFlow = TextFlowUtil.importFromString('<a href="'+data.link+'">'+data.link+'</a>');
+					postLink.x = 10;
+					postLink.y = 475;
+					postLink.width = 450;
+					postLink.height = 20;
+					postLink.editable = false;
+					postLink.focusEnabled = false;
+					postLink.addEventListener(MouseEvent.MOUSE_OVER,postLink_mouseover);
+					postLink.addEventListener(MouseEvent.MOUSE_OUT,postLink_mouseout);
+					postLink.addEventListener(MouseEvent.CLICK,postLink_click);
+					ttlWndw.addElementAt(postLink,2);		
+				}
+				
+				
+				PopUpManager.addPopUp(ttlWndw, this, true);
+				//PopUpManager.centerPopUp(ttlWndw);
+			}
+			
+			protected function ttlWndw_close(evt:CloseEvent):void {
+				PopUpManager.removePopUp(evt.currentTarget as IFlexDisplayObject);
+			}
+			/* Method invoked when the link on the popup window is clicked */
+			protected function postLink_click(evt:MouseEvent):void {
+				navigateToURL( new URLRequest(postLink.text), "_blank" );
+			}
+			protected function postLink_mouseover(evt:MouseEvent):void {
+				Mouse.cursor = MouseCursor.HAND;
+			}
+			protected function postLink_mouseout(evt:MouseEvent):void {
+				Mouse.cursor = MouseCursor.ARROW;
+			}
+		]]>
+	</fx:Script>
+	
+	<s:HGroup>
+		<s:VGroup>
+			<s:HGroup>
+				<s:Image source="{data.picture}"/>
+				<s:VGroup>
+					<s:HGroup>
+						<s:Label text = "Name: " fontWeight="bold"/>
+						<s:Label text="{data.name}"/>
+					</s:HGroup>
+					<s:HGroup>
+						<s:Label text = "From: " fontWeight="bold"/>
+						<s:Label text="{data.from.name}"/>
+					</s:HGroup>
+				</s:VGroup>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text = "Description: " fontWeight="bold"/>
+				<s:Label text="{data.description}"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text = "Message: " fontWeight="bold"/>
+				<s:Label text="{data.message}"/>
+			</s:HGroup>
+			<s:HGroup>
+				<s:Label text = "Likes: " fontWeight="bold"/>
+				<s:Label text="{data.likes.count}"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:HGroup>
+	
+</s:ItemRenderer>

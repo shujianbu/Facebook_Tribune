@@ -1,0 +1,566 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:faceevent="services.faceevent.*"
+					   xmlns:valueObjects="valueObjects.*"
+					   xmlns:searchgroup="services.searchgroup.*"
+					   xmlns:searchgroupid="services.searchgroupid.*"
+					   xmlns:searchtheguardian="services.searchtheguardian.*"
+					   xmlns:searchnytimes="services.searchnytimes.*"
+					   xmlns:searchwsj="services.searchwsj.*"
+					   xmlns:searchbbc="services.searchbbc.*"
+					   xmlns:searchreuters="services.searchreuters.*"
+					   creationComplete="windowedapplication1_creationCompleteHandler(event)"
+					   skinClass="ApplicationSkin" 
+					   width="1244" height="774">
+	<fx:Style source="AboutFace_1.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serializers.utility.TypeUtility;
+			import com.facebook.graph.FacebookDesktop;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import valueObjects.Data;
+			protected var access_token:String; //access token for the facebook app
+			
+			//flags to check if the corresponding checkbox ` selected
+			protected var reuters_selected:Boolean = false;
+			protected var cnn_selected:Boolean = false;
+			protected var bbcnews_selected:Boolean = false;
+			protected var wsj_selected:Boolean = false;
+			protected var nytimes_selected:Boolean = false;
+			protected var guardian_selected:Boolean = false;
+			
+			//Bindable lists to display the feed (for topic and news)
+			[Bindable] protected var newsFeedList:ArrayCollection = new ArrayCollection();
+			[Bindable] protected var finalLoggedInEventList:ArrayCollection;
+			
+			//Hard coded array to store trusted publishers for search by topic
+			protected var urlList:ArrayCollection;
+			
+			/* Event handler when search for topic button is clicked
+			If it's public access, i.e. not logged on then faceEventResult is invoked
+			else, it's faceEventLoggedInResult
+			*/
+			protected function button_clickHandler(event:MouseEvent):void
+			{
+				if(qTextInput.text == "" || qTextInput.text ==null){
+					Alert.show("Please enter a topic and then click on search!","Error!");
+				}else{
+					if(searchEvent!=null && searchEvent.selected)
+					{
+						
+						if(currentState=="Loggedin"){
+							faceEventLoggedInResult.token = faceEvent.faceEvent(qTextInput.text);
+							eventLoggedInList.visible = true;
+						}
+						else{
+							faceEventResult.token = faceEvent.faceEvent(qTextInput.text);
+							eventList.visible = true;
+						}
+						
+					}else{
+						faceEventResult.token = faceEvent.faceEvent(qTextInput.text);
+						eventList.visible = true;
+					}	
+				}
+			}
+			
+			/* This method is for the premium service that we are offering to users who 
+			access the app after logging in to facebook. When the user decided to choose 
+			to search for a topic, the app will present her a curated list of posts. 
+			This means that only posts put up by trusted publishers will be displayed.
+			In comparison, if the user's not logged on, she will see all posts related
+			to the topic, irrespective of publisher.
+			The parsing is primitive, and definitely can be improved on 
+			*/
+			protected function updateEventResult(event:ResultEvent):void{
+				var masterEventList:ArrayCollection = faceEventLoggedInResult.lastResult.data;
+				finalLoggedInEventList = new ArrayCollection();
+				for each(var faceEvent:valueObjects.Data in masterEventList){
+					for each(var url:String in urlList){
+						if(faceEvent.link!=null && faceEvent.link.indexOf(url) > -1)
+							finalLoggedInEventList.addItem(faceEvent);
+					}
+				}
+				if(finalLoggedInEventList.length > 0){
+					displayMessage.visible = true;
+					displayMessage.text = "This is a curated list of posts on your selected topic in the past 2 hours or so."
+				}else{
+					eventLoggedInList.visible = false;
+					displayMessage.visible = true;
+					displayMessage.text = "Sorry! News organizations we admire have not posted anything related to your selected topic in the past 2 hours or so."
+				}
+				
+			}
+			
+			/* This method is used to consolidate the feeds from the selected publications to one list
+			*/
+			protected function updateNewsFeed(event:ResultEvent):void{
+				var feedList:ArrayCollection;
+				var newsFeed:valueObjects.Data;
+				
+				var isBBCDone:Boolean = false;
+				var isReutersDone:Boolean = false;
+				var isWSJDone:Boolean = false;
+				var isGuardianDone:Boolean = false;
+				var isNYTDone:Boolean = false;
+				
+				
+				if(bbcnews_selected && searchforBBCResult.lastResult!=null){
+					feedList = searchforBBCResult.lastResult.data;
+					if(feedList!=null){
+						
+						for each(newsFeed in feedList){
+							newsFeedList.addItem(newsFeed);							
+						}
+						isBBCDone = true;
+					}
+				}
+				
+				if(nytimes_selected && searchforNYTimesResult.lastResult!=null){
+					feedList = searchforNYTimesResult.lastResult.data;
+					if(feedList!=null){
+						
+						for each(newsFeed in feedList){
+							newsFeedList.addItem(newsFeed);							
+						}
+						isNYTDone = true;
+					}
+					
+				}
+				
+				if(reuters_selected && searchforReutersResult.lastResult!=null){
+					feedList = searchforReutersResult.lastResult.data;
+					if(feedList!=null){
+						
+						for each(newsFeed in feedList){
+							newsFeedList.addItem(newsFeed);							
+						}
+						isReutersDone = true;
+					}
+					
+				}
+				
+				if(guardian_selected && searchfortheguardianResult.lastResult!=null){
+					feedList = searchfortheguardianResult.lastResult.data;
+						if(feedList!=null){					
+							for each(newsFeed in feedList){
+								newsFeedList.addItem(newsFeed);						
+							}
+							isGuardianDone = true;
+					}
+						
+				}
+				if(wsj_selected && searchforWSJResult.lastResult!=null){
+					feedList = searchforWSJResult.lastResult.data;
+					if(feedList!=null){						
+						for each(newsFeed in feedList){
+							newsFeedList.addItem(newsFeed);							
+						}
+						isWSJDone = true;
+					}
+				}
+				if((isWSJDone && wsj_selected) || (isBBCDone && bbcnews_selected)||(isReutersDone && reuters_selected)||(isNYTDone && nytimes_selected)||(isGuardianDone && guardian_selected)){
+					if(feedList.length > 0){
+						feedListDisplay.visible = true;
+						displayMessage.visible = true;
+						displayMessage.text = "Here's your news feed from the past 2 hours or so."
+					}else{
+						displayMessage.visible = true;
+						displayMessage.text = "Sorry! News organizations we admire have not posted anything related to your selected topic in the past 2 hours or so."
+					}
+				}
+	
+			}
+			
+			
+			protected function windowedapplication1_creationCompleteHandler(event:FlexEvent):void
+			{
+				FacebookDesktop.init("183229221771286",loginHandler);
+				
+				//Initializing the trusted publications' array
+				urlList = new ArrayCollection();
+				urlList.addItem("www.nytimes.com");
+				urlList.addItem("www.reuters.com");
+				urlList.addItem("www.bbc.co.uk");
+				urlList.addItem("www.cnn.com");
+				urlList.addItem("online.wsj.com");
+				urlList.addItem("www.guardian.co.uk");
+				urlList.addItem("www.washingtonpost.com");
+				urlList.addItem("salon.com");
+			
+			}
+			
+			protected function loginHandler(success:Object,fail:Object):void
+			{
+				if(success)
+				{
+					currentState="Loggedin";
+					nameLbl.text=success.user.name;
+					userImg.source=FacebookDesktop.getImageUrl(success.uid,"small");
+					access_token = success.accessToken;
+				} 
+			}
+			
+			protected function publicAccessHandler(success:Object, fail:Object):void
+			{
+				if(success)
+				{
+					currentState="PublicAccess";
+				}
+			}
+			
+			protected function login():void
+			{
+				FacebookDesktop.login(loginHandler);
+			}
+			
+			protected function logout():void
+			{
+				if(currentState == "Loggedout")
+				{
+					
+				}
+				else
+				{
+					FacebookDesktop.logout();
+					currentState="Loggedout";	
+				}
+			}
+			
+			protected function publicaccess():void
+			{
+				currentState="PublicAccess";
+			}
+			
+			protected function publiclogout():void
+			{
+				currentState="Loggedout"
+				if(feedListDisplay !=null)
+				feedListDisplay.visible = false;
+				eventList.visible = false;
+				eventLoggedInList.visible = false;
+				displayMessage.visible = false;
+			}
+			
+			/* Event handler for button click after news feed sources are selected */
+			protected function item_delivery_clickHandler(event:MouseEvent):void
+			{
+				newsFeedList = new ArrayCollection();
+				
+				
+				reuters_selected = false;
+				bbcnews_selected = false;
+				wsj_selected = false;
+				nytimes_selected = false;
+				guardian_selected = false;
+				
+				if(reutersbox.selected)
+					reuters_selected = true;
+				if(bbcbox.selected)
+					bbcnews_selected = true;
+				if(wsjbox.selected)
+					wsj_selected = true;
+				if(nytimesbox.selected)
+					nytimes_selected = true;
+				if(guardianbox.selected)
+					guardian_selected = true;
+				
+				if(reuters_selected == false && bbcnews_selected == false && wsj_selected == false && nytimes_selected == false && guardian_selected == false){
+					Alert.show("Please select at least one source for your news feed!","Error!");
+				}
+				
+				var isReset:Boolean = resetVisibility();
+				
+				if(reutersbox.selected)
+				{					
+					searchforReutersResult.token = searchReuters.searchforReuters(access_token);					
+				}
+				
+				if(bbcnews_selected)
+				{
+					searchforBBCResult.token = searchBBC.searchforBBC(access_token);					
+				}
+				
+				if(wsj_selected)
+				{					
+					searchforWSJResult.token = searchWSJ.searchforWSJ(access_token);					
+				}
+				
+				if(nytimes_selected)
+				{					
+					searchforNYTimesResult.token = searchNYTimes.searchforNYTimes(access_token);					
+				}
+				if(guardian_selected)
+				{					
+					searchfortheguardianResult.token = searchTheGuardian.searchfortheguardian(access_token);					
+				}
+			}
+			
+			/* The following methods mainly have to do with hide/show logic. */
+			
+			protected function resetVisibility():Boolean
+			{
+				if(feedListDisplay!=null)
+				feedListDisplay.visible = false;
+				if(displayMessage!=null)
+				displayMessage.visible = false;
+				return true;
+			}
+
+			
+			
+			protected function searchEvent_clickHandler(event:MouseEvent):void
+			{
+				resetVisibility();
+				qTextInput.visible = true;
+				qTextInput.text = "";
+				button.visible = true;				
+				if(feedPanel!=null)
+				feedPanel.visible = false;			
+				
+			}
+			
+			protected function checkFeed_clickHandler(event:MouseEvent):void
+			{
+				eventLoggedInList.visible = false;
+				eventList.visible = false;
+				qTextInput.visible = false;
+				qTextInput.text = "";
+				button.visible = false;				
+				
+				if(feedPanel!=null)
+				feedPanel.visible = true;
+		
+			}
+			
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="Loggedout"/>
+		<s:State name="Loggedin"/>
+		<s:State name="PublicAccess"/>
+	</s:states>
+	<fx:Declarations>
+		<faceevent:FaceEvent id="faceEvent"
+							 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+							 showBusyCursor="true"/>
+		<s:CallResponder id="faceEventResult"
+						 result="searchEvents = faceEventResult.lastResult as SearchEvents"/>
+		<s:CallResponder id="faceEventLoggedInResult"
+						 result="updateEventResult(event);"/>
+		<valueObjects:SearchEvents id="searchEvents">
+			<valueObjects:paging>
+				<valueObjects:Paging/>
+			</valueObjects:paging>
+		</valueObjects:SearchEvents>
+		<valueObjects:SearchEvents id="searchLoggedInEvents">
+			<valueObjects:paging>
+				<valueObjects:Paging/>
+			</valueObjects:paging>
+		</valueObjects:SearchEvents>
+		<searchgroup:Searchgroup id="searchgroup"
+								 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+								 showBusyCursor="true"/>
+		<s:CallResponder id="searchGroupResult"
+						 result="searchGroups = searchGroupResult.lastResult as SearchGroups"/>
+		<valueObjects:SearchGroups id="searchGroups">
+			<valueObjects:paging>
+				<valueObjects:Paging/>
+			</valueObjects:paging>
+		</valueObjects:SearchGroups>
+		<searchgroupid:Searchgroupid id="searchgroupid"
+									 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+									 showBusyCursor="true"/>
+		<s:CallResponder id="searchGroupIDResult"
+						 result="searchGroupIDs = searchGroupIDResult.lastResult as SearchGroupIDs"/>
+		<valueObjects:SearchGroupIDs id="searchGroupIDs">
+			<valueObjects:owner>
+				<valueObjects:Owner/>
+			</valueObjects:owner>
+		</valueObjects:SearchGroupIDs>
+		<searchtheguardian:SearchTheGuardian id="searchTheGuardian"
+											 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+											 showBusyCursor="true"/>
+		<s:CallResponder id="searchfortheguardianResult"
+						 result="updateNewsFeed(event);"/>
+		<valueObjects:TheGuardian id="theGuardian">
+			<valueObjects:paging.Loggedin>
+				<valueObjects:Paging/>
+			</valueObjects:paging.Loggedin>
+		</valueObjects:TheGuardian>
+		<searchnytimes:SearchNYTimes id="searchNYTimes"
+									 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+									 showBusyCursor="true"/>
+		<s:CallResponder id="searchforNYTimesResult"
+						 result="updateNewsFeed(event);"/>
+		<valueObjects:NYTimes id="nYTimes">
+			<valueObjects:paging.Loggedin>
+				<valueObjects:Paging/>
+			</valueObjects:paging.Loggedin>
+		</valueObjects:NYTimes>
+		<searchwsj:SearchWSJ id="searchWSJ"
+							 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+							 showBusyCursor="true"/>
+		<s:CallResponder id="searchforWSJResult"
+						 result="updateNewsFeed(event);"/>
+		<valueObjects:TheWallStreetJournal id="theWallStreetJournal">
+			<valueObjects:paging.Loggedin>
+				<valueObjects:Paging/>
+			</valueObjects:paging.Loggedin>
+		</valueObjects:TheWallStreetJournal>
+		<searchbbc:SearchBBC id="searchBBC"
+							 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+							 showBusyCursor="true"/>
+		<s:CallResponder id="searchforBBCResult"
+						 result="updateNewsFeed(event);"/>
+		<valueObjects:BBCnews id="bBCnews">
+			<valueObjects:paging.Loggedin>
+				<valueObjects:Paging/>
+			</valueObjects:paging.Loggedin>
+		</valueObjects:BBCnews>
+		<searchreuters:SearchReuters id="searchReuters"
+									 fault="Alert.show(event.fault.faultString + '\n' + event.fault.faultDetail)"
+									 showBusyCursor="true"/>
+		<s:CallResponder id="searchforReutersResult"
+						 result="updateNewsFeed(event);"/>
+		<valueObjects:Reuters id="reuters">
+			<valueObjects:paging.Loggedin>
+				<valueObjects:Paging/>
+			</valueObjects:paging.Loggedin>
+		</valueObjects:Reuters>
+
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:Button id="loginoutBtn" includeIn="Loggedout"
+			  right.Loggedout="398" top.Loggedout="385" width.Loggedout="100" height.Loggedout="100"
+			  label.Loggedout="Log in" click.Loggedout="login()"
+			  skinClass.Loggedout="FBLoginButtonSkin" label = "login to private mode using Facebook Username to gain access to tailored newsfeed"/>
+	
+	
+	<s:BorderContainer includeIn="Loggedin" right="80" top="30" width="276" height="70"
+					   borderAlpha="0.0" backgroundAlpha="0.0">
+		<s:Label x="66" y="21" fontWeight="bold" text="Welcome"/>
+		<s:Label id="nameLbl" x="127" y="21" width="143"/>
+		<s:Image id="userImg" includeIn="Loggedin" x="0" y="9" width="50"/>
+	</s:BorderContainer>
+	
+	<!--was left = 124, width = 300-->
+	<s:Panel includeIn="Loggedin" left="124" top="440" width="300" height="210"
+			 title="Journalistic Feeds" id="feedPanel" visible="false" depth="1" 
+			 chromeColor.Loggedin="#19317F"
+			 backgroundColor.Loggedin="#FFFFFF" color.Loggedin="#FBFBFB">
+		
+		<mx:VBox x="10" y="15" width="130" height="140" color="#330033">
+			<s:CheckBox id = "reutersbox" label="Reuters" selected="false" enabled="true"/>
+			<s:CheckBox id = "bbcbox" label="BBC news" selected="false" enabled="true"/>
+			<s:CheckBox id = "wsjbox" label="Wall Street Journal" selected="false" enabled="true"/>
+			<s:CheckBox id = "nytimesbox" label="New York Times" selected="false" enabled="true"/>
+			<s:CheckBox id = "guardianbox" label="The Guardian" selected="false" enabled="true" />
+		</mx:VBox>
+		<s:Button id = 'item_delivery' click="item_delivery_clickHandler(event)" x="41" y="145" label="Search by Agency" enabled="true"/>
+	</s:Panel>
+	
+	
+		<s:List id="eventList" visible="false" left="500" top="280" width="620" height="350"
+				alternatingItemColors="[0xFFFFFF, 0x6699FF]" itemRenderer="NewsFeedRow"
+				borderColor.Loggedout="#2684E4">
+			<s:AsyncListView list="{TypeUtility.convertToCollection(faceEventResult.lastResult.data)}"/>
+		</s:List>
+	
+
+	
+	
+		<s:List id="eventLoggedInList" visible="false" left="500" top="312" width="620" height="350"
+				alternatingItemColors="[0xFFFFFF, 0x6699FF]" itemRenderer="NewsFeedRow"
+				left.Loggedin="500" top.Loggedin="283" height.Loggedin="379">
+			<s:AsyncListView list="{finalLoggedInEventList}"/>
+		</s:List>
+	
+	
+		<s:List id="feedListDisplay" includeIn="Loggedin" visible="false" left="500" top="312" width="620" height="350"
+				alternatingItemColors="[0xFFFFFF, 0x6699FF]" itemRenderer="NewsFeedRow"
+				>
+			
+			<s:AsyncListView list="{newsFeedList}"/>
+		</s:List>
+	
+	
+	<s:Button includeIn="Loggedout, PublicAccess" width="105" height="30"
+			  skinClass="FBLogoutButtonSkin"
+			  click.Loggedin="publicaccess()"
+			  left.Loggedout="338" top.Loggedout="384" width.Loggedout="100" height.Loggedout="100"
+			  label.Loggedout="Public Access" click.Loggedout="publicaccess()"
+			  skinClass.Loggedout="FBPublicButton"
+			  right.PublicAccess="113" top.PublicAccess="108" width.PublicAccess="63"
+			  height.PublicAccess="63" label.PublicAccess="Quit Public"
+			  chromeColor.PublicAccess="#FFFFFF" click.PublicAccess="publiclogout()"
+			  cornerRadius.PublicAccess="0" icon.PublicAccess="assets/home transparent3.png"
+			  skinClass.PublicAccess="spark.skins.spark.ButtonSkin"/>
+	
+	
+	<s:Panel includeIn="Loggedin, PublicAccess" visible="true" left="120" top="230" width="300"
+			 height="155" defaultButton="{button}" title="Public Search Engine"
+			 left.Loggedin="123" top.Loggedin="302" height.Loggedin="350"
+			 backgroundColor.Loggedin="#FFFFFF" chromeColor.Loggedin="#19317F"
+			 color.Loggedin="#FBFBFB" textAlign.Loggedin="center" title.Loggedin="News Fetcher"
+			 left.PublicAccess="122" top.PublicAccess="290" height.PublicAccess="305"
+			 chromeColor.PublicAccess="#19317F" color.PublicAccess="#FFFFFF"
+			 title.PublicAccess="News Fetcher">
+		
+		<mx:RadioButton id="searchEvent" includeIn="Loggedin" x="28" y="9" width="133"
+						label="Search by Topic" click="searchEvent_clickHandler(event)"
+						color="#000000" selected="false"
+						x.Loggedin="6" y.Loggedin="10"/>
+		
+		<mx:RadioButton id="checkFeed" includeIn="Loggedin" x="150" y="10" label="Check news feed"
+						click="checkFeed_clickHandler(event)" color="#000000" selected="false"
+						label.Loggedin="Customize your feeds"/>
+		
+		<!--tracer-->
+		<s:TextInput id="qTextInput" x="23" y="40" width="250" height="30"
+					 visible.Loggedin="true" x.Loggedin="30" width.Loggedin="229" contentBackgroundColor.Loggedin="#b5d1fb" 
+					 color.Loggedin="#000000"
+					 visible.PublicAccess="true" x.PublicAccess="24" y.PublicAccess="62"
+					 color.PublicAccess="#000000" contentBackgroundColor.PublicAccess="#b5d1fb"/>
+		
+		
+		
+		<s:Button id="button" x="95" y="90" label="Search by Topic"
+				  click="button_clickHandler(event)"
+				  visible.Loggedin="true"
+				  visible.PublicAccess="true" x.PublicAccess="96" y.PublicAccess="157"/>
+	</s:Panel>
+	<s:Label id="displayMessage" includeIn="Loggedin,PublicAccess" visible="true" width="580"
+			 height="47" fontFamily="Times New Roman" fontSize="18" fontWeight="bold" text=""
+			 x.Loggedin="494" y.Loggedin="248" color.Loggedin="#3D75E6" fontFamily.Loggedin="Arial"
+			 fontSize.Loggedin="14" fontStyle.Loggedin="italic" fontWeight.Loggedin="normal"
+			 x.PublicAccess="464" y.PublicAccess="228" width.PublicAccess="656"
+			 fontSize.PublicAccess="14"/>
+	<s:Button includeIn="PublicAccess" x="124" y="108" width="63" height="63" label="Help"
+			  chromeColor="#E7E2E2"
+			  click="navigateToURL(new URLRequest('assets/help.html'),'_blank')" cornerRadius="0"
+			  icon="assets/help2.png"/>
+	<s:Button includeIn="Loggedin" x="124" y="108" width="63" height="63" label="Help"
+			  chromeColor="#E7E2E2"
+			  click="navigateToURL(new URLRequest('assets/help.html'),'_blank')" cornerRadius="0"
+			  icon="assets/help2.png"/>
+	<s:Button includeIn="Loggedin" right="113" top="108" width="63" height="63" label="Home"
+			  chromeColor="#FFFFFF" click="publiclogout()" cornerRadius="0"
+			  icon="assets/home transparent3.png" skinClass="spark.skins.spark.ButtonSkin"/>
+	<s:Button includeIn="Loggedout" right="113" top="108" width="63" height="63" label="Home"
+			  chromeColor="#FFFFFF" click="publiclogout()" cornerRadius="0"
+			  icon="assets/home transparent3.png" skinClass="spark.skins.spark.ButtonSkin"/>
+	<s:Button includeIn="Loggedout" x="124" y="108" width="63" height="63" label="Help"
+			  chromeColor="#E7E2E2"
+			  click="navigateToURL(new URLRequest('assets/help.html'),'_blank')" cornerRadius="0"
+			  icon="assets/help2.png"/>
+	<s:Image includeIn="Loggedout" x="936" y="193" width="165" height="163" source="@Embed(source='images/search.png')"/>
+	<s:Image includeIn="Loggedout" x="407" y="451" width="379" height="313" source="@Embed(source='images/newspaper.png')"/>
+</s:WindowedApplication>
